@@ -1,0 +1,51 @@
+{
+  "name": "@dovca/integer-range-regexp",
+  "version": "0.1.0",
+  "keywords": [
+    "regexp",
+    "regex",
+    "integer",
+    "range"
+  ],
+  "description": "Generate a regular expression that matches integers in a given range",
+  "license": "MIT",
+  "author": {
+    "name": "David Ovčačík",
+    "url": "https://github.com/dovca"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dovca/integer-range-regexp"
+  },
+  "bugs": {
+    "url": "https://github.com/dovca/integer-range-regexp/issues"
+  },
+  "homepage": "https://github.com/dovca/integer-range-regexp#readme",
+  "files": [
+    "dist"
+  ],
+  "main": "dist/index.mjs",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "types": "./dist/index.d.mts"
+    }
+  },
+  "packageManager": "pnpm@11.5.1",
+  "scripts": {
+    "build": "tsdown --dts",
+    "test": "vitest run --tags-filter='not slow'",
+    "test:update": "vitest run --update --tags-filter='not slow'",
+    "test:all": "vitest run",
+    "lint": "eslint .",
+    "prepublishOnly": "pnpm build"
+  },
+  "devDependencies": {
+    "eslint": "^10.5.0",
+    "tsdown": "^0.22.2",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.0",
+    "vitest": "^4.1.9"
+  }
+}
