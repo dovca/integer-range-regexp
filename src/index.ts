@@ -63,19 +63,20 @@ function getNonNegativeRangeRegExpSource(minValue: number, maxValue: number): st
     if (j < digitCount - minStrRaw.length && j > 1) {
       const quant = getRegexQuantifier(digitCount - 1 - j, digitCount - 2)
       partialRanges.push(`[1-9]\\d${quant}`)
-      break
+
+      // Skip to processing the firstDiffPos after which the loop ends
+      j = firstDiffPos
     }
 
     const min = Number(minStr[j]!)
     const max = Number(maxStr[j]!)
 
-    if (min === 9) continue
-    if (firstDiffPos === j && min + 1 >= max) continue
-
     const lo = min + 1
     const hi = firstDiffPos === j ? max - 1 : 9
 
-    addPartialRange(minStr, j, getRegexCharRange(lo, hi))
+    if (lo <= hi) {
+      addPartialRange(minStr, j, getRegexCharRange(lo, hi))
+    }
   }
 
   // Second partial range: [T, maxStr-1].
