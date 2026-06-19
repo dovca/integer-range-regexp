@@ -1,16 +1,17 @@
 import {
-  prefixWithoutLeadingZeroes,
+  getRegexCharRange,
   getRegexQuantifier,
   getSubRangeSuffix,
   makeSourceExact,
   makeSourceNegative,
-  makeSourceUnion, getRegexCharRange,
+  makeSourceUnion,
+  prefixWithoutLeadingZeroes,
 } from './utils'
 
-export type IntegerRangeRegExpOptions = {
+export interface IntegerRangeRegExpOptions {
   /** Should the RegExp be surrounded by `^` and `$`? */
   exact?: boolean,
-};
+}
 
 // Validates that the range boundaries are in correct order
 function validateRangeInput(min: number, max: number): void {
@@ -68,8 +69,8 @@ function getNonNegativeRangeRegExpSource(minValue: number, maxValue: number): st
       j = firstDiffPos
     }
 
-    const min = Number(minStr[j]!)
-    const max = Number(maxStr[j]!)
+    const min = Number(minStr[j])
+    const max = Number(maxStr[j])
 
     const lo = min + 1
     const hi = firstDiffPos === j ? max - 1 : 9
@@ -82,7 +83,7 @@ function getNonNegativeRangeRegExpSource(minValue: number, maxValue: number): st
   // Second partial range: [T, maxStr-1].
   // For example if maxStr='6413', this covers 6000 -> 6412.
   for (let j = firstDiffPos + 1; j < digitCount; j++) {
-    const max = Number(maxStr[j]!)
+    const max = Number(maxStr[j])
 
     if (max > 0) {
       addPartialRange(maxStr, j, getRegexCharRange(0, max - 1))
@@ -112,8 +113,8 @@ function getRangeRegExpSource(min: number, max: number): string {
 /**
  * Generate a RegExp instance that can match strings containing integers
  * between `min` and `max` inclusive.
- * @param min the smallest value that will match
- * @param max the largest value that will match
+ * @param min The smallest value that will match
+ * @param max The largest value that will match
  * @param [options]
  *  - `exact` (false): Should the RegExp be surrounded by `^` and `$`?
  */
