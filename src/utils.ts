@@ -47,3 +47,8 @@ export function getLeadingZeroCount(str: string): number {
   }
   return i
 }
+
+// Keeps a single 0 when only 0's are given, otherwise removes all leading zeroes
+export function trimLeadingZeroes(str: string): string {
+  return str.replace(/^0+(?!$)/, '')
+}

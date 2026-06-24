@@ -7,6 +7,7 @@ import {
   makeSourceExact,
   makeSourceNegative,
   makeSourceUnion,
+  trimLeadingZeroes,
 } from './utils'
 
 export interface IntegerRangeRegExpOptions {
@@ -80,23 +81,19 @@ function getPartialRanges(minStr: string, maxStr: string, prefixLength: number):
 }
 
 // This function can only work with non-negative ranges
-function getNonNegativeRangeRegExpSource(minValue: number, maxValue: number): string {
-  // Ensure correct input and non-negative values
-  validateRangeInput(0, minValue)
-  validateRangeInput(minValue, maxValue)
+function getNonNegativeRangeRegExpSource(min: number, max: number): string {
+  const maxStr = max.toString()
 
-  const maxStr = maxValue.toString()
+  if (min === max) return maxStr
 
-  if (minValue === maxValue) return maxStr
-
-  const minStrRaw = minValue.toString()
+  const minStrRaw = min.toString()
   const minStr = minStrRaw.padStart(maxStr.length, '0')
   const prefix = getCommonPrefix(minStr, maxStr)
-  const partialRanges = getPartialRanges(minStr.slice(prefix.length), maxStr.slice(prefix.length), prefix.length)
+  const minSuffix = minStr.slice(prefix.length)
+  const maxSuffix = maxStr.slice(prefix.length)
+  const partialRanges = getPartialRanges(minSuffix, maxSuffix, prefix.length)
 
-  if (partialRanges.length === 0) return makeSourceUnion(minStrRaw, maxStr)
-  if (prefix === '') return makeSourceUnion(minStrRaw, ...partialRanges, maxStr)
-  return makeSourceUnion(minStrRaw, prefix + makeSourceUnion(...partialRanges), maxStr)
+  return prefix + makeSourceUnion(trimLeadingZeroes(minSuffix), ...partialRanges, maxSuffix)
 }
 
 // This function can resolve ranges that can include negative numbers
@@ -111,6 +108,7 @@ function getRangeRegExpSource(min: number, max: number): string {
     // Range spans negative and positive numbers
     const negativeSource = makeSourceNegative(getNonNegativeRangeRegExpSource(1, -min))
     const positiveSource = getNonNegativeRangeRegExpSource(0, max)
+
     return makeSourceUnion(negativeSource, positiveSource)
   }
 }
@@ -130,11 +128,9 @@ export function createIntegerRangeRegExp(
 ): RegExp {
   validateRangeInput(min, max)
 
-  let source = getRangeRegExpSource(min, max)
+  const source = getRangeRegExpSource(min, max)
 
-  if (options.exact) {
-    source = makeSourceExact(source)
-  }
-
-  return new RegExp(source)
+  return options.exact
+    ? new RegExp(makeSourceExact(source))
+    : new RegExp(source)
 }
