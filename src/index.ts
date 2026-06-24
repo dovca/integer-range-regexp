@@ -7,6 +7,7 @@ import {
   makeSourceExact,
   makeSourceNegative,
   makeSourceUnion,
+  trimAllLeadingZeroes,
   trimLeadingZeroes,
 } from './utils'
 
@@ -25,7 +26,7 @@ function validateRangeInput(min: number, max: number): void {
 function getPartialRanges(minStr: string, maxStr: string, prefixLength: number): string[] {
   const digitCount = maxStr.length
   const leadingZeroCount = getLeadingZeroCount(minStr)
-  const trimLeadingZeroes = prefixLength === 0
+  const trimZeroes = prefixLength === 0
 
   // Let T = maxStr[0] followed by digitCount-1 zeros.
   // The range splits into: minStrRaw, [minStrRaw+1, T-1], [T, maxStr-1], maxStr.
@@ -35,7 +36,7 @@ function getPartialRanges(minStr: string, maxStr: string, prefixLength: number):
 
   const addPartialRange = (str: string, index: number, middleChunk: string): void => {
     const rawPrefix = str.slice(0, index)
-    const prefix = trimLeadingZeroes ? rawPrefix.replace(/^0+/, '') : rawPrefix
+    const prefix = trimZeroes ? trimAllLeadingZeroes(rawPrefix) : rawPrefix
     const suffix = getPartialRangeSuffix(index, digitCount)
 
     partialRanges.push(prefix + middleChunk + suffix)
@@ -89,11 +90,12 @@ function getNonNegativeRangeRegExpSource(min: number, max: number): string {
   const minStrRaw = min.toString()
   const minStr = minStrRaw.padStart(maxStr.length, '0')
   const prefix = getCommonPrefix(minStr, maxStr)
-  const minSuffix = minStr.slice(prefix.length)
   const maxSuffix = maxStr.slice(prefix.length)
-  const partialRanges = getPartialRanges(minSuffix, maxSuffix, prefix.length)
+  const minSuffixRaw = minStr.slice(prefix.length)
+  const minSuffix = prefix.length === 0 ? trimLeadingZeroes(minSuffixRaw) : minSuffixRaw
+  const partialRanges = getPartialRanges(minSuffixRaw, maxSuffix, prefix.length)
 
-  return prefix + makeSourceUnion(trimLeadingZeroes(minSuffix), ...partialRanges, maxSuffix)
+  return prefix + makeSourceUnion(minSuffix, ...partialRanges, maxSuffix)
 }
 
 // This function can resolve ranges that can include negative numbers

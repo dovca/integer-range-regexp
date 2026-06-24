@@ -52,3 +52,7 @@ export function getLeadingZeroCount(str: string): number {
 export function trimLeadingZeroes(str: string): string {
   return str.replace(/^0+(?!$)/, '')
 }
+
+export function trimAllLeadingZeroes(str: string): string {
+  return str.replace(/^0+/, '')
+}
