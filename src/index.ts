@@ -1,11 +1,12 @@
 import {
+  getCommonPrefix,
+  getLeadingZeroCount,
+  getPartialRangeSuffix,
   getRegexCharRange,
   getRegexQuantifier,
-  getSubRangeSuffix,
   makeSourceExact,
   makeSourceNegative,
   makeSourceUnion,
-  prefixWithoutLeadingZeroes,
 } from './utils'
 
 export interface IntegerRangeRegExpOptions {
@@ -20,60 +21,45 @@ function validateRangeInput(min: number, max: number): void {
   }
 }
 
-// This function can only work with non-negative ranges
-function getNonNegativeRangeRegExpSource(minValue: number, maxValue: number): string {
-  // Ensure correct input and non-negative values
-  validateRangeInput(0, minValue)
-  validateRangeInput(minValue, maxValue)
-
-  const maxStr = maxValue.toString()
-
-  if (minValue === maxValue) {
-    return maxStr
-  }
-
-  const minStrRaw = minValue.toString()
-  const minStr = minStrRaw.padStart(maxStr.length, '0')
+function getPartialRanges(minStr: string, maxStr: string, prefixLength: number): string[] {
   const digitCount = maxStr.length
+  const leadingZeroCount = getLeadingZeroCount(minStr)
+  const trimLeadingZeroes = prefixLength === 0
 
-  let firstDiffPos = 0
-
-  // Skip to the first differing digit
-  while (firstDiffPos < digitCount && minStr[firstDiffPos] === maxStr[firstDiffPos]) {
-    firstDiffPos++
-  }
-
-  // firstDiffPos is the first index where minStr and maxStr differ; all earlier digits are equal.
-  // minStr[firstDiffPos] < maxStr[firstDiffPos] by construction.
-  // Let T = maxStr[firstDiffPos+1] followed by (digitCount - firstDiffPos - 1) zeros.
-  // The range splits into: minStrRaw, [minStrRaw+1, T-1], [T, maxStr-1], maxStr —
-  // the middle two parts are covered by the two loops below.
+  // Let T = maxStr[0] followed by digitCount-1 zeros.
+  // The range splits into: minStrRaw, [minStrRaw+1, T-1], [T, maxStr-1], maxStr.
+  // The middle two parts are covered by the two loops below.
 
   const partialRanges: string[] = []
 
   const addPartialRange = (str: string, index: number, middleChunk: string): void => {
-    partialRanges.push(prefixWithoutLeadingZeroes(str, index) + middleChunk + getSubRangeSuffix(index, digitCount))
+    const rawPrefix = str.slice(0, index)
+    const prefix = trimLeadingZeroes ? rawPrefix.replace(/^0+/, '') : rawPrefix
+    const suffix = getPartialRangeSuffix(index, digitCount)
+
+    partialRanges.push(prefix + middleChunk + suffix)
   }
 
   // First partial range: [minStrRaw+1, T-1].
   // For example if minStrRaw='127' and maxStr='6413', this covers 128 -> 5999.
-  for (let j = digitCount - 1; j >= firstDiffPos; j--) {
-    // Short-circuit: when j is in the leading-zero region of minStr, emit a compact
-    // from-to repetition pattern instead of a long list of alternatives.
+  for (let j = digitCount - 1; j >= 0; j--) {
+    // Short-circuit: when j is in the leading-zero region of minStr and
+    // there is no prefix before them, emit a compact from-to repetition pattern
+    // instead of a long list of alternatives.
     // j > 1 prevents emitting \d{n,m} with n > m (invalid quantifier) when j reaches 0.
-    if (j < digitCount - minStrRaw.length && j > 1) {
+    if (j < leadingZeroCount && j > 1 && prefixLength === 0) {
       const quant = getRegexQuantifier(digitCount - 1 - j, digitCount - 2)
       partialRanges.push(`[1-9]\\d${quant}`)
 
-      // Skip to processing the firstDiffPos after which the loop ends
-      j = firstDiffPos
+      // Skip to processing the left-most digit after which the loop ends
+      j = 0
     }
 
     const min = Number(minStr[j])
     const max = Number(maxStr[j])
 
     const lo = min + 1
-    const hi = firstDiffPos === j ? max - 1 : 9
+    const hi = j === 0 ? max - 1 : 9
 
     if (lo <= hi) {
       addPartialRange(minStr, j, getRegexCharRange(lo, hi))
@@ -82,7 +68,7 @@ function getNonNegativeRangeRegExpSource(minValue: number, maxValue: number): st
 
   // Second partial range: [T, maxStr-1].
   // For example if maxStr='6413', this covers 6000 -> 6412.
-  for (let j = firstDiffPos + 1; j < digitCount; j++) {
+  for (let j = 1; j < digitCount; j++) {
     const max = Number(maxStr[j])
 
     if (max > 0) {
@@ -90,8 +76,27 @@ function getNonNegativeRangeRegExpSource(minValue: number, maxValue: number): st
     }
   }
 
-  // We can combine the partial ranges into a single regex.
-  return makeSourceUnion(minStrRaw, ...partialRanges, maxStr)
+  return partialRanges
+}
+
+// This function can only work with non-negative ranges
+function getNonNegativeRangeRegExpSource(minValue: number, maxValue: number): string {
+  // Ensure correct input and non-negative values
+  validateRangeInput(0, minValue)
+  validateRangeInput(minValue, maxValue)
+
+  const maxStr = maxValue.toString()
+
+  if (minValue === maxValue) return maxStr
+
+  const minStrRaw = minValue.toString()
+  const minStr = minStrRaw.padStart(maxStr.length, '0')
+  const prefix = getCommonPrefix(minStr, maxStr)
+  const partialRanges = getPartialRanges(minStr.slice(prefix.length), maxStr.slice(prefix.length), prefix.length)
+
+  if (partialRanges.length === 0) return makeSourceUnion(minStrRaw, maxStr)
+  if (prefix === '') return makeSourceUnion(minStrRaw, ...partialRanges, maxStr)
+  return makeSourceUnion(minStrRaw, prefix + makeSourceUnion(...partialRanges), maxStr)
 }
 
 // This function can resolve ranges that can include negative numbers
